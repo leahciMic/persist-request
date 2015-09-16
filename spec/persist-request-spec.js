@@ -63,7 +63,11 @@ describe('persistRequest', function() {
       persistRequest.get('http://foo.bar');
       expect(fsMock.createWriteStream).toHaveBeenCalledWith('/tmp/0d6fb577802e8a8f023ab678bca108c29b3982c6');
       expect(requestStreamMock.pipe).toHaveBeenCalledWith(fakeWriteStream);
+    });
 
+    it('should set filename property on stream object', function() {
+      var stream = persistRequest.get('http://foo.bar');
+      expect(stream.filename).toEqual('whatever');
     });
   });
 
