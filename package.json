@@ -1,0 +1,36 @@
+{
+  "name": "persist-request",
+  "version": "1.0.0",
+  "description": "Download a file from the internet and persist it in a cache directory.",
+  "main": "index.js",
+  "scripts": {
+    "test": "jasmine"
+  },
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/leahciMic/persist-request.git"
+  },
+  "keywords": [
+    "persist",
+    "file",
+    "request",
+    "download",
+    "cache"
+  ],
+  "author": "Michael Leaney <leahcimic@gmail.com>",
+  "license": "ISC",
+  "bugs": {
+    "url": "https://github.com/leahciMic/persist-request/issues"
+  },
+  "homepage": "https://github.com/leahciMic/persist-request#readme",
+  "dependencies": {
+    "debug": "^2.2.0",
+    "mkdirp": "^0.5.1",
+    "node-sha1": "^1.0.1",
+    "request": "^2.62.0"
+  },
+  "devDependencies": {
+    "jasmine": "^2.3.2",
+    "proxyquire": "^1.7.2"
+  }
+}
