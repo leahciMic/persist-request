@@ -38,6 +38,8 @@ persistRequest.prototype.get = function(url) {
     }
   }
 
+  readStream.filename = fullCachePath;
+
   return readStream;
 };
 

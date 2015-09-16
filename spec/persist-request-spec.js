@@ -1,4 +1,8 @@
 var proxyquire = require('proxyquire');
+var FIXTURE_SHA1 = 'foobarsha1';
+
+var sha1Mock = jasmine.createSpy('sha1Mock')
+  .and.returnValue('foobarsha1');
 
 var fsMock = jasmine.createSpyObj('fsMock', [
   'createReadStream',
@@ -18,7 +22,8 @@ var PersistRequest = proxyquire(
   {
     fs: fsMock,
     mkdirp: mkdirpMock,
-    request: requestMock
+    request: requestMock,
+    'node-sha1': sha1Mock
   }
 );
 
@@ -39,7 +44,7 @@ describe('persistRequest', function() {
     var fakeStream = {};
     fsMock.createReadStream.and.returnValue(fakeStream);
     expect(persistRequest.get('http://foo.bar')).toEqual(fakeStream);
-    expect(fsMock.createReadStream).toHaveBeenCalledWith('/tmp/0d6fb577802e8a8f023ab678bca108c29b3982c6');
+    expect(fsMock.createReadStream).toHaveBeenCalledWith('/tmp/' + FIXTURE_SHA1);
     expect(requestMock).not.toHaveBeenCalled();
   });
 
@@ -55,19 +60,19 @@ describe('persistRequest', function() {
 
     it('should request file if cache does not exist', function() {
       expect(persistRequest.get('http://foo.bar')).toEqual(requestStreamMock);
-      expect(fsMock.createReadStream).toHaveBeenCalledWith('/tmp/0d6fb577802e8a8f023ab678bca108c29b3982c6');
+      expect(fsMock.createReadStream).toHaveBeenCalledWith('/tmp/' + FIXTURE_SHA1);
       expect(requestMock).toHaveBeenCalledWith('http://foo.bar');
     });
 
     it('should write the file to the cache', function() {
       persistRequest.get('http://foo.bar');
-      expect(fsMock.createWriteStream).toHaveBeenCalledWith('/tmp/0d6fb577802e8a8f023ab678bca108c29b3982c6');
+      expect(fsMock.createWriteStream).toHaveBeenCalledWith('/tmp/' + FIXTURE_SHA1);
       expect(requestStreamMock.pipe).toHaveBeenCalledWith(fakeWriteStream);
     });
 
     it('should set filename property on stream object', function() {
       var stream = persistRequest.get('http://foo.bar');
-      expect(stream.filename).toEqual('whatever');
+      expect(stream.filename).toEqual('/tmp/foobarsha1');
     });
   });
 
