@@ -1,6 +1,6 @@
 {
   "name": "persist-request",
-  "version": "1.0.0",
+  "version": "1.0.1",
   "description": "Download a file from the internet and persist it in a cache directory.",
   "main": "index.js",
   "scripts": {
