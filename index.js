@@ -26,16 +26,13 @@ persistRequest.prototype.get = function(url) {
   var cacheFileName = sha1(url);
   var fullCachePath = path.join(this.cacheDir, cacheFileName);
 
-  try {
-    debug('attempting to read from ' + fullCachePath);
+  debug('attempting to read from ' + fullCachePath);
+
+  if (fs.existsSync(fullCachePath)) {
     readStream = fs.createReadStream(fullCachePath);
-  } catch(e) {
-    if (e.code === 'ENOENT') {
-      debug('cache did not exist, retrieving from ' + url);
-      readStream = request(url).pipe(fs.createWriteStream(fullCachePath));
-    } else {
-      throw e;
-    }
+  } else {
+    debug('cache did not exist, retrieving from ' + url);
+    readStream = request(url).pipe(fs.createWriteStream(fullCachePath));
   }
 
   readStream.filename = fullCachePath;
