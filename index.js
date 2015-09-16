@@ -4,7 +4,6 @@ var fs = require('fs');
 var request = require('request');
 var sha1 = require('node-sha1');
 var path = require('path');
-var bluebird = require('bluebird');
 var debug = require('debug')('persist-request:debug');
 var mkdirp = require('mkdirp');
 
@@ -33,7 +32,7 @@ persistRequest.prototype.get = function(url) {
   } catch(e) {
     if (e.code === 'ENOENT') {
       debug('cache did not exist, retrieving from ' + url);
-      readStream = request(url);
+      readStream = request(url).pipe(fs.createWriteStream(fullCachePath));
     } else {
       throw e;
     }
@@ -42,4 +41,6 @@ persistRequest.prototype.get = function(url) {
   return readStream;
 };
 
-module.exports = persistRequest;
+module.exports = function(cacheDir) {
+  return new persistRequest(cacheDir);
+};
