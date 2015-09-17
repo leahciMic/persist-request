@@ -6,10 +6,11 @@ var sha1Mock = jasmine.createSpy('sha1Mock')
 
 var fsMock = jasmine.createSpyObj('fsMock', [
   'createReadStream',
-  'createWriteStream'
+  'createWriteStream',
+  'existsSync'
 ]);
 
-var requestStreamMock = jasmine.createSpyObj('requestStreamMock', ['pipe']);
+var requestStreamMock = jasmine.createSpyObj('requestStreamMock', ['pipe', 'on']);
 requestStreamMock.pipe.and.returnValue(requestStreamMock);
 
 var requestMock = jasmine.createSpy('request').and.returnValue(requestStreamMock);
@@ -43,6 +44,7 @@ describe('persistRequest', function() {
   it('should read from file if it exists', function() {
     var fakeStream = {};
     fsMock.createReadStream.and.returnValue(fakeStream);
+    fsMock.existsSync.and.returnValue(true);
     expect(persistRequest.get('http://foo.bar')).toEqual(fakeStream);
     expect(fsMock.createReadStream).toHaveBeenCalledWith('/tmp/' + FIXTURE_SHA1);
     expect(requestMock).not.toHaveBeenCalled();
@@ -50,41 +52,32 @@ describe('persistRequest', function() {
 
   describe('cache miss', function() {
     beforeEach(function() {
-      // var fakeError = new Error('ENOENT: no such file or directory, open \'\')
+      fsMock.existsSync.and.returnValue(false);
       fsMock.createReadStream.and.callFake(function(fileName) {
-        var fakeError = new Error('ENOENT: no such file or directory, open \'' + fileName + '\'');
-        fakeError.code = 'ENOENT';
-        throw fakeError;
+        return requestStreamMock;
       });
     });
 
-    it('should request file if cache does not exist', function() {
-      expect(persistRequest.get('http://foo.bar')).toEqual(requestStreamMock);
-      expect(fsMock.createReadStream).toHaveBeenCalledWith('/tmp/' + FIXTURE_SHA1);
-      expect(requestMock).toHaveBeenCalledWith('http://foo.bar');
+    fit('should request file if cache does not exist', function() {
+      expect(persistRequest.get('http://foo.bar/file.txt')).toEqual(requestStreamMock);
+      expect(fsMock.existsSync).toHaveBeenCalledWith('/tmp/' + FIXTURE_SHA1 + '.txt');
+      expect(requestMock).toHaveBeenCalledWith('http://foo.bar/file.txt');
     });
 
     it('should write the file to the cache', function() {
-      persistRequest.get('http://foo.bar');
-      expect(fsMock.createWriteStream).toHaveBeenCalledWith('/tmp/' + FIXTURE_SHA1);
+      persistRequest.get('http://foo.bar/file.txt');
+      expect(fsMock.createWriteStream).toHaveBeenCalledWith('/tmp/' + FIXTURE_SHA1 + '.txt');
       expect(requestStreamMock.pipe).toHaveBeenCalledWith(fakeWriteStream);
     });
 
     it('should set filename property on stream object', function() {
-      var stream = persistRequest.get('http://foo.bar');
-      expect(stream.filename).toEqual('/tmp/foobarsha1');
-    });
-  });
-
-  it('should not swallow other errors', function() {
-    fsMock.createReadStream.and.callFake(function(fileName) {
-      var fakeError = new Error('A foobar error');
-      fakeError.code = 'foobar';
-      throw fakeError;
+      var stream = persistRequest.get('http://foo.bar/file.js');
+      expect(stream.filename).toEqual('/tmp/foobarsha1.js');
     });
 
-    expect(function() {
-      persistRequest.get('http://foo.bar');
-    }).toThrowError('A foobar error');
+    it('should respect the filename extension from the url', function() {
+      var stream = persistRequest.get('http://foo.bar/somesortoffile.txt');
+      expect(stream.filename).toEqual('/tmp/foobarsha1.txt');
+    });
   });
 });

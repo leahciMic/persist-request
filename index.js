@@ -24,7 +24,7 @@ persistRequest.prototype.get = function(url) {
   // check for cached copy
   var readStream;
   var cacheFileName = sha1(url);
-  var fullCachePath = path.join(this.cacheDir, cacheFileName);
+  var fullCachePath = path.join(this.cacheDir, cacheFileName) + path.extname(url);
 
   debug('attempting to read from ' + fullCachePath);
 
