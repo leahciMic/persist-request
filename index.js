@@ -30,9 +30,11 @@ persistRequest.prototype.get = function(url) {
   debug('attempting to read from ' + fullCachePath);
 
   if (fs.existsSync(fullCachePath)) {
+    debug('cache exists');
     readStream = fs.createReadStream(fullCachePath);
     defer(function() {
-      readStream.emit('cacheExists', fullCachePath);
+      debug('emit cacheFile');
+      readStream.emit('cacheFile', fullCachePath);
     });
   } else {
     debug('cache did not exist, retrieving from ' + url);
@@ -42,7 +44,7 @@ persistRequest.prototype.get = function(url) {
 
     cacheStream.on('finish', function() {
       debug('emit cacheFile');
-      readStream.emit('cacheExists', fullCachePath);
+      readStream.emit('cacheFile', fullCachePath);
     });
   }
 
