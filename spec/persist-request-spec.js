@@ -12,6 +12,8 @@ var fsMock = jasmine.createSpyObj('fsMock', [
 
 var requestStreamMock = jasmine.createSpyObj('requestStreamMock', ['pipe', 'on']);
 requestStreamMock.pipe.and.returnValue(requestStreamMock);
+var writeStreamMock = jasmine.createSpyObj('writeStreamMock', ['pipe', 'on']);
+
 
 var requestMock = jasmine.createSpy('request').and.returnValue(requestStreamMock);
 var mkdirpMock = jasmine.createSpy('mkdirpMock');
@@ -33,8 +35,7 @@ describe('persistRequest', function() {
 
   beforeEach(function() {
     persistRequest = new PersistRequest('/tmp/');
-    fakeWriteStream = function() {};
-    fsMock.createWriteStream.and.returnValue(fakeWriteStream);
+    fsMock.createWriteStream.and.returnValue(writeStreamMock);
   });
 
   it('should create cache directory on startup', function() {
@@ -45,8 +46,8 @@ describe('persistRequest', function() {
     var fakeStream = {};
     fsMock.createReadStream.and.returnValue(fakeStream);
     fsMock.existsSync.and.returnValue(true);
-    expect(persistRequest.get('http://foo.bar')).toEqual(fakeStream);
-    expect(fsMock.createReadStream).toHaveBeenCalledWith('/tmp/' + FIXTURE_SHA1);
+    expect(persistRequest.get('http://foo.bar/test.txt')).toEqual(fakeStream);
+    expect(fsMock.createReadStream).toHaveBeenCalledWith('/tmp/' + FIXTURE_SHA1 + '.txt');
     expect(requestMock).not.toHaveBeenCalled();
   });
 
@@ -58,7 +59,7 @@ describe('persistRequest', function() {
       });
     });
 
-    fit('should request file if cache does not exist', function() {
+    it('should request file if cache does not exist', function() {
       expect(persistRequest.get('http://foo.bar/file.txt')).toEqual(requestStreamMock);
       expect(fsMock.existsSync).toHaveBeenCalledWith('/tmp/' + FIXTURE_SHA1 + '.txt');
       expect(requestMock).toHaveBeenCalledWith('http://foo.bar/file.txt');
@@ -67,7 +68,7 @@ describe('persistRequest', function() {
     it('should write the file to the cache', function() {
       persistRequest.get('http://foo.bar/file.txt');
       expect(fsMock.createWriteStream).toHaveBeenCalledWith('/tmp/' + FIXTURE_SHA1 + '.txt');
-      expect(requestStreamMock.pipe).toHaveBeenCalledWith(fakeWriteStream);
+      expect(requestStreamMock.pipe).toHaveBeenCalledWith(writeStreamMock);
     });
 
     it('should set filename property on stream object', function() {

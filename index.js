@@ -6,6 +6,7 @@ var sha1 = require('node-sha1');
 var path = require('path');
 var debug = require('debug')('persist-request:debug');
 var mkdirp = require('mkdirp');
+var defer = require('lodash.defer');
 
 function persistRequest(cacheDir) {
   if (!cacheDir) {
@@ -30,9 +31,19 @@ persistRequest.prototype.get = function(url) {
 
   if (fs.existsSync(fullCachePath)) {
     readStream = fs.createReadStream(fullCachePath);
+    defer(function() {
+      readStream.emit('cacheExists', fullCachePath);
+    });
   } else {
     debug('cache did not exist, retrieving from ' + url);
-    readStream = request(url).pipe(fs.createWriteStream(fullCachePath));
+    var cacheStream = fs.createWriteStream(fullCachePath);
+    readStream = request(url).pipe(cacheStream);
+    readStream.fromCache = false;
+
+    cacheStream.on('finish', function() {
+      debug('emit cacheFile');
+      readStream.emit('cacheExists', fullCachePath);
+    });
   }
 
   readStream.filename = fullCachePath;

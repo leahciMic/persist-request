@@ -25,6 +25,7 @@
   "homepage": "https://github.com/leahciMic/persist-request#readme",
   "dependencies": {
     "debug": "^2.2.0",
+    "lodash.defer": "^3.1.0",
     "mkdirp": "^0.5.1",
     "node-sha1": "^1.0.1",
     "request": "^2.62.0"
