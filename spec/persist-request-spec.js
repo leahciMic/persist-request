@@ -1,5 +1,8 @@
 var proxyquire = require('proxyquire');
 var FIXTURE_SHA1 = 'foobarsha1';
+var memoryStream = require('memorystream');
+var tempStreamMock;
+var requestStreamMock;
 
 var sha1Mock = jasmine.createSpy('sha1Mock')
   .and.returnValue('foobarsha1');
@@ -7,16 +10,30 @@ var sha1Mock = jasmine.createSpy('sha1Mock')
 var fsMock = jasmine.createSpyObj('fsMock', [
   'createReadStream',
   'createWriteStream',
-  'existsSync'
+  'existsSync',
+  'renameSync'
 ]);
 
-var requestStreamMock = jasmine.createSpyObj('requestStreamMock', ['pipe', 'on']);
-requestStreamMock.pipe.and.returnValue(requestStreamMock);
-var writeStreamMock = jasmine.createSpyObj('writeStreamMock', ['pipe', 'on']);
+var createFakeRequestStream = function() {
+  requestStreamMock = new memoryStream.createReadStream(['This is test data']);
+  spyOn(requestStreamMock, 'pipe').and.callThrough();
+  return requestStreamMock;
+};
 
+var createFakeTempStream = function() {
+  tempStreamMock = new memoryStream.createWriteStream();
+  tempStreamMock.path = 'foobar';
+  return tempStreamMock;
+};
 
-var requestMock = jasmine.createSpy('request').and.returnValue(requestStreamMock);
+var writeStreamMock = jasmine.createSpyObj('writeStreamMock', ['pipe', 'on', '_write', 'write', 'emit']);
+
+var requestMock = jasmine.createSpy('request').and.callFake(createFakeRequestStream);
 var mkdirpMock = jasmine.createSpy('mkdirpMock');
+
+var tempMock = jasmine.createSpyObj('tempMock', ['createWriteStream']);
+
+tempMock.createWriteStream.and.callFake(createFakeTempStream);
 
 var fakeWriteStream;
 
@@ -26,6 +43,7 @@ var PersistRequest = proxyquire(
     fs: fsMock,
     mkdirp: mkdirpMock,
     request: requestMock,
+    temp: tempMock,
     'node-sha1': sha1Mock
   }
 );
@@ -43,7 +61,7 @@ describe('persistRequest', function() {
   });
 
   it('should read from file if it exists', function() {
-    var fakeStream = {};
+    var fakeStream = new memoryStream(['foo', 'bar'], {writable: false});
     fsMock.createReadStream.and.returnValue(fakeStream);
     fsMock.existsSync.and.returnValue(true);
     expect(persistRequest.get('http://foo.bar/test.txt')).toEqual(fakeStream);
@@ -54,21 +72,22 @@ describe('persistRequest', function() {
   describe('cache miss', function() {
     beforeEach(function() {
       fsMock.existsSync.and.returnValue(false);
-      fsMock.createReadStream.and.callFake(function(fileName) {
-        return requestStreamMock;
-      });
     });
 
     it('should request file if cache does not exist', function() {
-      expect(persistRequest.get('http://foo.bar/file.txt')).toEqual(requestStreamMock);
+      expect(persistRequest.get('http://foo.bar/file.txt')).toBe(tempStreamMock);
       expect(fsMock.existsSync).toHaveBeenCalledWith('/tmp/' + FIXTURE_SHA1 + '.txt');
       expect(requestMock).toHaveBeenCalledWith('http://foo.bar/file.txt');
     });
 
-    it('should write the file to the cache', function() {
+    it('should write the file to the cache', function(done) {
       persistRequest.get('http://foo.bar/file.txt');
-      expect(fsMock.createWriteStream).toHaveBeenCalledWith('/tmp/' + FIXTURE_SHA1 + '.txt');
-      expect(requestStreamMock.pipe).toHaveBeenCalledWith(writeStreamMock);
+      expect(tempMock.createWriteStream).toHaveBeenCalled();
+      expect(requestStreamMock.pipe).toHaveBeenCalledWith(tempStreamMock);
+      tempStreamMock.on('finish', function() {
+        expect(fsMock.renameSync).toHaveBeenCalledWith('foobar', '/tmp/foobarsha1.txt');
+        done();
+      });
     });
 
     it('should set filename property on stream object', function() {

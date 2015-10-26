@@ -7,6 +7,8 @@ var path = require('path');
 var debug = require('debug')('persist-request:debug');
 var mkdirp = require('mkdirp');
 var defer = require('lodash.defer');
+var pkg = require('./package.json');
+var temp = require('temp');
 
 function persistRequest(cacheDir) {
   if (!cacheDir) {
@@ -24,8 +26,13 @@ function persistRequest(cacheDir) {
 persistRequest.prototype.get = function(url) {
   // check for cached copy
   var readStream;
-  var cacheFileName = sha1(url);
+
+  // there was a bug early on where if the process crashed before we quit, we
+  // would return a cache file that was half written next time someone asked
+  // for the same url
+  var cacheFileName = sha1(pkg.version + ':' + url);
   var fullCachePath = path.join(this.cacheDir, cacheFileName) + path.extname(url);
+  var tmpStream = temp.createWriteStream();
 
   debug('attempting to read from ' + fullCachePath);
 
@@ -38,11 +45,14 @@ persistRequest.prototype.get = function(url) {
     });
   } else {
     debug('cache did not exist, retrieving from ' + url);
-    var cacheStream = fs.createWriteStream(fullCachePath);
-    readStream = request(url).pipe(cacheStream);
+    var requestStream = request(url);
+
+    readStream = requestStream.pipe(tmpStream);
     readStream.fromCache = false;
 
-    cacheStream.on('finish', function() {
+    tmpStream.on('finish', function() {
+      debug('rename', tmpStream.path, 'to', fullCachePath);
+      fs.renameSync(tmpStream.path, fullCachePath);
       debug('emit cacheFile');
       readStream.emit('cacheFile', fullCachePath);
     });
